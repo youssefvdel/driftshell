@@ -39,6 +39,7 @@ use crate::shared;
 pub struct Bar {
     pub clock: String,
     pub workspaces: Vec<driftwm::Workspace>,
+    pub tray_services: Vec<String>,
 }
 
 // ── Messages ───────────────────────────────────────────────────────────────
@@ -48,6 +49,7 @@ pub enum Message {
     Tick,
     Workspaces(Vec<super::driftwm::Workspace>),
     FocusWorkspace(String),
+    TrayUpdate(Vec<String>),
     ToggleLauncher,
     ToggleSettings,
 }
@@ -66,6 +68,9 @@ pub fn update(bar: &mut Bar, msg: Message) {
             if let Err(e) = driftwm::ipc::run_action(&format!("focus-window {app_id}")) {
                 log::error!("focus workspace: {e}");
             }
+        }
+        Message::TrayUpdate(services) => {
+            bar.tray_services = services;
         }
         Message::ToggleLauncher | Message::ToggleSettings => {
             // Handled by app-level update
@@ -116,6 +121,13 @@ pub fn view(bar: &Bar) -> Element<'_, Message, Theme, iced::Renderer> {
             .collect::<Vec<_>>(),)
         .spacing(2),
         Space::new().width(Length::Fill),
+        row(bar
+            .tray_services
+            .iter()
+            .map(|s: &String| text(s).size(11).into())
+            .collect::<Vec<Element<'_, Message, Theme, iced::Renderer>>>())
+        .spacing(4),
+        Space::new().width(4),
         text(&bar.clock).size(13),
     ]
     .padding([0, shared::BAR_PADDING as u16])

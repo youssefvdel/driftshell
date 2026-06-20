@@ -14,6 +14,7 @@ mod driftwm;
 mod launcher;
 mod settings;
 mod shared;
+mod tray;
 mod wallpaper;
 
 use clap::Parser;

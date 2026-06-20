@@ -13,6 +13,7 @@ use crate::driftwm;
 use crate::launcher;
 use crate::settings;
 use crate::shared;
+use crate::tray;
 
 // ── Messages ───────────────────────────────────────────────────────────────
 
@@ -38,6 +39,7 @@ pub struct App {
     pub launcher: launcher::Launcher,
     pub settings: settings::Settings,
     pub apps_scanned: bool,
+    pub tray_state: tray::TrayState,
     pub dock_window: Option<IcedId>,
     pub launcher_window: Option<IcedId>,
     pub settings_window: Option<IcedId>,
@@ -52,6 +54,7 @@ impl Default for App {
             launcher: launcher::Launcher::new(std::collections::HashMap::new()),
             settings: settings::Settings::default(),
             apps_scanned: false,
+            tray_state: tray::new_state(),
             dock_window: None,
             launcher_window: None,
             settings_window: None,
@@ -76,6 +79,7 @@ pub fn run() -> Result<(), iced_layershell::Error> {
                 margin: None,
             });
             let mut app = App::default();
+            tray::spawn_watcher(app.tray_state.clone());
             let favs = dock::scan_favorites();
             if !favs.is_empty() {
                 app.dock.favorites = favs;
@@ -155,6 +159,11 @@ impl App {
             Message::Settings(msg) => self.handle_settings(msg),
             Message::Tick => {
                 bar::update(&mut self.bar, bar::Message::Tick);
+                let services: Vec<String> = tray::read_items(&self.tray_state)
+                    .into_iter()
+                    .map(|t| t.service.clone())
+                    .collect();
+                bar::update(&mut self.bar, bar::Message::TrayUpdate(services));
                 Command::batch([poll_driftwm(), schedule_tick()])
             }
             Message::OpenLauncher => self.toggle_launcher(),
