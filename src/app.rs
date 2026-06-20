@@ -10,6 +10,7 @@ use iced_layershell::{daemon, to_layer_message};
 use crate::bar;
 use crate::driftwm;
 use crate::launcher;
+use crate::settings;
 use crate::shared;
 
 // ── Messages ───────────────────────────────────────────────────────────────
@@ -20,8 +21,10 @@ pub enum Message {
     Bar(bar::Message),
     Driftwm(driftwm::Message),
     Launcher(launcher::Message),
+    Settings(settings::Message),
     Tick,
     OpenLauncher,
+    OpenSettings,
 }
 
 // ── App State ──────────────────────────────────────────────────────────────
@@ -30,8 +33,10 @@ pub struct App {
     pub bar: bar::Bar,
     pub driftwm: driftwm::State,
     pub launcher: launcher::Launcher,
+    pub settings: settings::Settings,
     pub apps_scanned: bool,
     pub launcher_window: Option<IcedId>,
+    pub settings_window: Option<IcedId>,
 }
 
 impl Default for App {
@@ -40,8 +45,10 @@ impl Default for App {
             bar: bar::Bar::default(),
             driftwm: driftwm::State::default(),
             launcher: launcher::Launcher::new(std::collections::HashMap::new()),
+            settings: settings::Settings::default(),
             apps_scanned: false,
             launcher_window: None,
+            settings_window: None,
         }
     }
 }
@@ -112,17 +119,21 @@ impl App {
                 }
                 Command::none()
             }
+            Message::Settings(msg) => self.handle_settings(msg),
             Message::Tick => {
                 bar::update(&mut self.bar, bar::Message::Tick);
                 Command::batch([poll_driftwm(), schedule_tick()])
             }
             Message::OpenLauncher => self.toggle_launcher(),
+            Message::OpenSettings => self.toggle_settings(),
             _ => Command::none(),
         }
     }
 
     fn view(&self, id: IcedId) -> Element<'_, Message> {
-        if self.launcher.visible && Some(id) == self.launcher_window {
+        if self.settings.visible && Some(id) == self.settings_window {
+            settings::view(&self.settings).map(Message::Settings)
+        } else if self.launcher.visible && Some(id) == self.launcher_window {
             launcher::view(&self.launcher).map(Message::Launcher)
         } else {
             bar::view(&self.bar).map(Message::Bar)
@@ -154,6 +165,54 @@ impl App {
         } else {
             launcher::update(&mut self.launcher, &launcher::Message::Toggle);
             self.launcher_window
+                .take()
+                .map(|id| Command::done(Message::RemoveWindow(id)))
+                .unwrap_or_default()
+        }
+    }
+
+    fn handle_settings(&mut self, msg: settings::Message) -> Command<Message> {
+        match &msg {
+            settings::Message::Close | settings::Message::Save => {
+                settings::update(&mut self.settings, &msg);
+                let id = self.settings_window.take();
+                let mut cmds = Vec::new();
+                if let Some(id) = id {
+                    cmds.push(Command::done(Message::RemoveWindow(id)));
+                }
+                if matches!(&msg, settings::Message::Save) {
+                    cmds.push(poll_driftwm());
+                }
+                Command::batch(cmds)
+            }
+            _ => {
+                settings::update(&mut self.settings, &msg);
+                Command::none()
+            }
+        }
+    }
+
+    fn toggle_settings(&mut self) -> Command<Message> {
+        if !self.settings.visible {
+            let config = driftwm::config::read().ok();
+            settings::update(&mut self.settings, &settings::Message::Open(config));
+
+            let (id, task) = Message::layershell_open(NewLayerShellSettings {
+                size: Some((600, 500)),
+                exclusive_zone: Some(0),
+                anchor: Anchor::Top | Anchor::Bottom | Anchor::Left | Anchor::Right,
+                layer: Layer::Overlay,
+                keyboard_interactivity: KeyboardInteractivity::OnDemand,
+                margin: None,
+                events_transparent: false,
+                output_option: OutputOption::None,
+                namespace: Some("driftshell-settings".to_string()),
+            });
+            self.settings_window = Some(id);
+            task
+        } else {
+            settings::update(&mut self.settings, &settings::Message::Close);
+            self.settings_window
                 .take()
                 .map(|id| Command::done(Message::RemoveWindow(id)))
                 .unwrap_or_default()

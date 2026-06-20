@@ -39,3 +39,10 @@ pub fn read() -> Result<DriftwmConfig, String> {
         .map_err(|e| format!("read config {}: {}", path.display(), e))?;
     toml::from_str(&content).map_err(|e| format!("parse config: {}", e))
 }
+
+/// Serialize and write config to disk.
+pub fn write(config: &DriftwmConfig) -> Result<(), String> {
+    let path = config_path();
+    let content = toml::to_string_pretty(config).map_err(|e| format!("serialize config: {}", e))?;
+    std::fs::write(&path, content).map_err(|e| format!("write config {}: {}", path.display(), e))
+}
