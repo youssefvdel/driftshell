@@ -2,6 +2,11 @@
 
 ## 2026-06-20 — Project Init
 
+- **First commit**: `bdc87ee` — initial scaffold pushed to GitHub
+- **Compiles**: cargo check + clippy clean, zero warnings
+- **Modules**: app, bar, driftwm (ipc + config), shared, launcher, settings, wallpaper (stubs)
+- **Dead code**: driftwm/ipc + config have `#![allow(dead_code)]` for upcoming workspace polling + settings features
+
 - **Repo created**: `youssefvdel/driftshell` (public)
 - **Stack decided**: Iced 0.14 + iced_layershell 0.18 for Wayland layer-shell UI
 - **Dependencies**: iced, iced_layershell, sctk, wayland-client, serde, toml, clap, chrono, zbus, tokio, calloop

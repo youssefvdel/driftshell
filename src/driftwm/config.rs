@@ -1,8 +1,4 @@
 //! Driftwm TOML config model + parser.
-//!
-//! #![allow(dead_code)] — needed when settings + wallpaper modules are built
-//! (config_path() + read() + BackgroundConfig).
-#![allow(dead_code)]
 
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;

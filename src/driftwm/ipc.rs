@@ -1,8 +1,4 @@
 //! Driftwm IPC protocol — socket connect + request.
-//!
-//! #![allow(dead_code)] — next feature: bar workspace polling via State socket.
-//! Once `bar.update()` polls get_state() → populates workspaces → displayed as indicators.
-#![allow(dead_code)]
 
 use serde::{Deserialize, Serialize};
 use std::io::{Read, Write};
