@@ -14,21 +14,12 @@ pub enum Request {
 
 #[derive(Deserialize)]
 pub struct StateResponse {
-    pub x: f64,
-    pub y: f64,
-    pub zoom: f64,
-    pub layout: String,
-    pub layout_short: String,
     pub windows: Vec<WindowInfo>,
-    pub layers: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct WindowInfo {
     pub app_id: String,
-    pub title: String,
-    pub position: [i32; 2],
-    pub size: [i32; 2],
     pub is_focused: bool,
     pub is_widget: bool,
 }
@@ -56,4 +47,16 @@ pub fn send_request(request: &Request) -> Result<String, String> {
         .read_to_string(&mut reply)
         .map_err(|e| format!("read: {}", e))?;
     Ok(reply.trim().to_string())
+}
+
+/// Send a `State` request and parse the response.
+pub fn request_state() -> Result<StateResponse, String> {
+    let reply = send_request(&Request::State)?;
+    serde_json::from_str(&reply).map_err(|e| format!("parse state response: {e} (raw: {reply:?})"))
+}
+
+/// Execute a compositor action (e.g. `"reload-config"`, `"close-window"`).
+pub fn run_action(action: &str) -> Result<(), String> {
+    send_request(&Request::Action(action.to_string()))?;
+    Ok(())
 }

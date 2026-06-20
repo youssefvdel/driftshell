@@ -58,12 +58,18 @@ impl App {
                 Command::none()
             }
             Message::Driftwm(msg) => {
+                if let driftwm::Message::StateUpdate(state) = &msg {
+                    bar::update(
+                        &mut self.bar,
+                        bar::Message::Workspaces(state.workspaces.clone()),
+                    );
+                }
                 driftwm::update(&mut self.driftwm, msg);
                 Command::none()
             }
             Message::Tick => {
                 bar::update(&mut self.bar, bar::Message::Tick);
-                schedule_tick()
+                Command::batch([poll_driftwm(), schedule_tick()])
             }
             _ => Command::none(),
         }
@@ -74,11 +80,49 @@ impl App {
     }
 }
 
+// ── Scheduling ─────────────────────────────────────────────────────────────
+
 fn schedule_tick() -> Command<Message> {
     Command::perform(
         async {
-            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
         },
         |_| Message::Tick,
+    )
+}
+
+/// Poll driftwm state in a background thread and emit a `Driftwm(StateUpdate)` message.
+fn poll_driftwm() -> Command<Message> {
+    Command::perform(
+        async {
+            let result = tokio::task::spawn_blocking(driftwm::ipc::request_state).await;
+            match result {
+                Ok(Ok(response)) => {
+                    let workspaces: Vec<_> = response
+                        .windows
+                        .iter()
+                        .filter(|w| !w.is_widget)
+                        .enumerate()
+                        .map(|(i, w)| driftwm::Workspace {
+                            id: i,
+                            name: w.app_id.clone(),
+                            active: w.is_focused,
+                        })
+                        .collect();
+                    let focused = response
+                        .windows
+                        .iter()
+                        .find(|w| w.is_focused)
+                        .map(|w| w.app_id.clone());
+                    driftwm::Message::StateUpdate(driftwm::State {
+                        workspaces,
+                        focused_app_id: focused,
+                    })
+                }
+                Ok(Err(e)) => driftwm::Message::Error(e),
+                Err(_) => driftwm::Message::Error("blocking task cancelled".to_string()),
+            }
+        },
+        Message::Driftwm,
     )
 }
