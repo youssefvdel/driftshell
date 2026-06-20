@@ -19,10 +19,12 @@ pub struct Bar {
 // ── Messages ───────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // ToggleLauncher wired when bar button added
 pub enum Message {
     Tick,
-    Workspaces(Vec<driftwm::Workspace>),
+    Workspaces(Vec<super::driftwm::Workspace>),
     FocusWorkspace(String),
+    ToggleLauncher,
 }
 
 // ── Update ─────────────────────────────────────────────────────────────────
@@ -39,6 +41,9 @@ pub fn update(bar: &mut Bar, msg: Message) {
             if let Err(e) = driftwm::ipc::run_action(&format!("focus-window {app_id}")) {
                 log::error!("focus workspace: {e}");
             }
+        }
+        Message::ToggleLauncher => {
+            // Handled by app-level update; this arm exists for completeness
         }
     }
 }
