@@ -12,6 +12,8 @@ pub struct DriftwmConfig {
     pub cursor: Option<CursorConfig>,
     pub background: Option<BackgroundConfig>,
     pub decorations: Option<DecorationsConfig>,
+    pub bar: Option<BarConfig>,
+    pub general: Option<GeneralConfig>,
     pub autostart: Option<Vec<String>>,
 }
 
@@ -38,6 +40,17 @@ pub struct BackgroundConfig {
     #[serde(rename = "type")]
     pub bg_type: Option<String>,
     pub path: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct BarConfig {
+    pub opacity: Option<f64>,
+    pub capsule_show: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct GeneralConfig {
+    pub animation_speed: Option<f64>,
 }
 
 pub fn config_path() -> PathBuf {

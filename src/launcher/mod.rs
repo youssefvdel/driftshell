@@ -1,12 +1,11 @@
 //! App launcher — fuzzy-find and launch applications via driftwm IPC.
 
 use iced::widget::{column, container, scrollable, text, text_input};
-use iced::{Border, Element, Length, Theme};
+use iced::{Alignment, Border, Element, Font, Length, Theme};
 
 use std::collections::HashMap;
 
-use crate::shared;
-use crate::shared::apps::AppEntry;
+use crate::shared::{apps::AppEntry, colors, style};
 
 // ── State ──────────────────────────────────────────────────────────────────
 
@@ -114,12 +113,29 @@ pub fn update(launcher: &mut Launcher, msg: &Message) {
 pub fn view(launcher: &Launcher) -> Element<'_, Message, Theme, iced::Renderer> {
     let search_input = text_input("Search applications...", &launcher.query)
         .on_input(Message::QueryChanged)
-        .padding(10)
-        .size(16)
-        .width(Length::Fill);
+        .padding([10, 14])
+        .size(style::FONT_M)
+        .width(Length::Fill)
+        .font(Font::with_name("JetBrains Mono"))
+        .style(
+            |_theme: &Theme, _status: text_input::Status| text_input::Style {
+                background: iced::Background::Color(colors::SURFACE_VARIANT),
+                border: iced::Border {
+                    radius: style::IRADIUS_S.into(),
+                    ..Default::default()
+                },
+                icon: colors::ON_SURFACE_VARIANT,
+                placeholder: colors::ON_SURFACE_VARIANT,
+                value: colors::ON_SURFACE,
+                selection: colors::PRIMARY,
+            },
+        );
 
     let results_list: Element<'_, Message, Theme, iced::Renderer> = if launcher.results.is_empty() {
-        text("No matching applications").size(14).into()
+        text("No matching applications")
+            .size(style::FONT_S)
+            .color(colors::ON_SURFACE_VARIANT)
+            .into()
     } else {
         let items: Vec<Element<'_, Message, Theme, iced::Renderer>> = launcher
             .results
@@ -130,16 +146,23 @@ pub fn view(launcher: &Launcher) -> Element<'_, Message, Theme, iced::Renderer> 
                 let is_selected = launcher.selected == Some(i);
                 let prefix = if is_selected { "▸ " } else { "  " };
                 let label = format!("{prefix}{}", app.name);
-                let row = text(label).size(14);
+                let row = text(label)
+                    .size(style::FONT_S)
+                    .font(Font::with_name("JetBrains Mono"))
+                    .color(if is_selected {
+                        colors::ON_PRIMARY
+                    } else {
+                        colors::ON_SURFACE
+                    });
 
                 container(row)
-                    .padding([4, 8])
+                    .padding([8, 14])
                     .style(move |_theme: &Theme| {
                         if is_selected {
                             container::Style {
-                                background: Some(iced::Background::Color(shared::colors::ACCENT)),
-                                border: Border {
-                                    radius: 4.0.into(),
+                                background: Some(iced::Background::Color(colors::PRIMARY)),
+                                border: iced::Border {
+                                    radius: style::IRADIUS_S.into(),
                                     ..Default::default()
                                 },
                                 ..Default::default()
@@ -157,18 +180,25 @@ pub fn view(launcher: &Launcher) -> Element<'_, Message, Theme, iced::Renderer> 
             .into()
     };
 
-    let content = column![search_input, results_list].spacing(8).padding(16);
+    let content = column![search_input, results_list].spacing(8);
 
-    container(content)
+    let card = container(content)
         .width(Length::Fill)
-        .height(Length::Fill)
+        .max_width(500.0)
+        .padding([16, 16])
         .style(|_theme: &Theme| container::Style {
-            background: Some(iced::Background::Color(shared::colors::SURFACE)),
+            background: Some(iced::Background::Color(colors::SURFACE)),
             border: Border {
-                radius: 8.0.into(),
+                radius: style::RADIUS_M.into(),
                 ..Default::default()
             },
             ..Default::default()
-        })
+        });
+
+    container(card)
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .align_x(Alignment::Center)
+        .align_y(Alignment::Center)
         .into()
 }

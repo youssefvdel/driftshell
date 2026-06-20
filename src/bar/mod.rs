@@ -3,32 +3,7 @@
 use chrono::Local;
 use iced::widget::button::{self, Button, Status};
 use iced::widget::{Space, container, row, text};
-use iced::{Color, Element, Length, Theme};
-
-fn icon_button<'a>(label: &'a str, msg: Message) -> Element<'a, Message, Theme, iced::Renderer> {
-    Button::new(text(label).size(13))
-        .padding([2, 8])
-        .style(|_theme: &Theme, status: Status| {
-            let bg = if matches!(status, Status::Hovered) {
-                Color::from_rgb(0.18, 0.18, 0.20)
-            } else {
-                Color::TRANSPARENT
-            };
-            button::Style {
-                background: Some(iced::Background::Color(bg)),
-                text_color: shared::colors::FG,
-                border: iced::Border {
-                    radius: 4.0.into(),
-                    width: 0.0,
-                    color: Color::TRANSPARENT,
-                },
-                shadow: iced::Shadow::default(),
-                snap: false,
-            }
-        })
-        .on_press(msg)
-        .into()
-}
+use iced::{Color, Element, Font, Length, Theme};
 
 use crate::driftwm;
 use crate::shared;
@@ -78,25 +53,80 @@ pub fn update(bar: &mut Bar, msg: Message) {
     }
 }
 
-// ── View ───────────────────────────────────────────────────────────────────
+// ── View helpers ────────────────────────────────────────────────────────────
+
+fn pill_button<'a>(
+    label: &'a str,
+    is_active: bool,
+    msg: Message,
+) -> Element<'a, Message, Theme, iced::Renderer> {
+    Button::new(
+        text(label)
+            .size(shared::style::FONT_XS)
+            .font(Font::with_name("JetBrains Mono")),
+    )
+    .padding([2, shared::style::MARGIN_S as u16])
+    .style(move |_theme: &Theme, status: Status| {
+        let bg = if is_active {
+            shared::colors::PRIMARY
+        } else {
+            Color::TRANSPARENT
+        };
+        let text_color = if is_active {
+            shared::colors::ON_PRIMARY
+        } else if matches!(status, Status::Hovered) {
+            shared::colors::HOVER
+        } else {
+            shared::colors::ON_SURFACE
+        };
+        button::Style {
+            background: Some(iced::Background::Color(bg)),
+            text_color,
+            border: iced::Border {
+                radius: if is_active {
+                    shared::style::IRADIUS_S.into()
+                } else {
+                    0.0.into()
+                },
+                width: 0.0,
+                color: Color::TRANSPARENT,
+            },
+            shadow: iced::Shadow::default(),
+            snap: false,
+        }
+    })
+    .on_press(msg)
+    .into()
+}
 
 fn workspace_button(ws: &driftwm::Workspace) -> Element<'_, Message, Theme, iced::Renderer> {
-    let label = text(&ws.name).size(12);
+    let label = text(&ws.name)
+        .size(shared::style::FONT_XS)
+        .font(Font::with_name("JetBrains Mono"));
     Button::new(label)
-        .padding([2, 6])
+        .padding([2, shared::style::MARGIN_S as u16])
         .style(move |_theme: &Theme, status: Status| {
             let bg = if ws.active {
-                shared::colors::ACCENT
-            } else if matches!(status, Status::Hovered) {
-                Color::from_rgb(0.18, 0.18, 0.20)
+                shared::colors::PRIMARY
             } else {
                 Color::TRANSPARENT
             };
+            let text_color = if ws.active {
+                shared::colors::ON_PRIMARY
+            } else if matches!(status, Status::Hovered) {
+                shared::colors::HOVER
+            } else {
+                shared::colors::ON_SURFACE
+            };
             button::Style {
                 background: Some(iced::Background::Color(bg)),
-                text_color: shared::colors::FG,
+                text_color,
                 border: iced::Border {
-                    radius: 4.0.into(),
+                    radius: if ws.active {
+                        shared::style::IRADIUS_S.into()
+                    } else {
+                        0.0.into()
+                    },
                     width: 0.0,
                     color: Color::TRANSPARENT,
                 },
@@ -108,35 +138,67 @@ fn workspace_button(ws: &driftwm::Workspace) -> Element<'_, Message, Theme, iced
         .into()
 }
 
+fn capsule<'a>(
+    children: impl IntoIterator<Item = Element<'a, Message, Theme, iced::Renderer>>,
+) -> Element<'a, Message, Theme, iced::Renderer> {
+    container(
+        row(children)
+            .align_y(iced::Alignment::Center)
+            .spacing(shared::style::MARGIN_S),
+    )
+    .height(shared::style::CAPSULE_HEIGHT)
+    .align_y(iced::Alignment::Center)
+    .style(|_theme: &Theme| container::Style {
+        background: Some(iced::Background::Color(shared::colors::SURFACE_VARIANT)),
+        border: iced::Border {
+            radius: shared::style::CAPSULE_RADIUS.into(),
+            width: 0.0,
+            color: Color::TRANSPARENT,
+        },
+        ..Default::default()
+    })
+    .into()
+}
+
+// ── View ───────────────────────────────────────────────────────────────────
+
 pub fn view(bar: &Bar) -> Element<'_, Message, Theme, iced::Renderer> {
+    // ── Right section: tray services + clock ────────────────────────────────
+    let mut right_children: Vec<Element<'_, Message, Theme, iced::Renderer>> = bar
+        .tray_services
+        .iter()
+        .map(|s| {
+            text(s)
+                .size(shared::style::FONT_XXS)
+                .font(Font::with_name("JetBrains Mono"))
+                .into()
+        })
+        .collect();
+    right_children.push(
+        text(&bar.clock)
+            .size(shared::style::FONT_XS)
+            .font(Font::with_name("JetBrains Mono"))
+            .into(),
+    );
+
+    // ── Left section: Apps button + workspace buttons + Settings button ─────
+    let mut left_children: Vec<Element<'_, Message, Theme, iced::Renderer>> = Vec::new();
+    left_children.push(pill_button("  Apps", false, Message::ToggleLauncher));
+    left_children.extend(bar.workspaces.iter().map(workspace_button));
+    left_children.push(pill_button("  Sets", false, Message::ToggleSettings));
+
     let content = row![
-        icon_button("  Apps", Message::ToggleLauncher),
-        Space::new().width(4),
-        icon_button("  Sets", Message::ToggleSettings),
-        Space::new().width(8),
-        row(bar
-            .workspaces
-            .iter()
-            .map(workspace_button)
-            .collect::<Vec<_>>(),)
-        .spacing(2),
+        capsule(left_children),
         Space::new().width(Length::Fill),
-        row(bar
-            .tray_services
-            .iter()
-            .map(|s: &String| text(s).size(11).into())
-            .collect::<Vec<Element<'_, Message, Theme, iced::Renderer>>>())
-        .spacing(4),
-        Space::new().width(4),
-        text(&bar.clock).size(13),
+        capsule(right_children),
     ]
-    .padding([0, shared::BAR_PADDING as u16])
-    .height(shared::BAR_HEIGHT)
+    .padding([0, shared::style::MARGIN_S as u16])
+    .height(shared::style::BAR_HEIGHT)
     .align_y(iced::Alignment::Center);
 
     container(content)
         .style(|_theme: &Theme| container::Style {
-            background: Some(iced::Background::Color(shared::colors::BG)),
+            background: Some(iced::Background::Color(shared::colors::SURFACE)),
             ..Default::default()
         })
         .width(iced::Length::Fill)

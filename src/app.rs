@@ -1,5 +1,7 @@
 //! Root Iced Daemon — manages bar + launcher windows.
 
+use std::borrow::Cow;
+
 use iced::Element;
 use iced::Task as Command;
 use iced_layershell::reexport::*;
@@ -94,14 +96,25 @@ pub fn run() -> Result<(), iced_layershell::Error> {
         App::update,
         App::view,
     )
-    .layer_settings(LayerShellSettings {
-        size: Some((0, 36)),
-        exclusive_zone: 36,
-        anchor: Anchor::Top | Anchor::Left | Anchor::Right,
-        layer: Layer::Top,
-        keyboard_interactivity: KeyboardInteractivity::None,
-        start_mode: StartMode::Active,
-        ..Default::default()
+    .settings(iced_layershell::settings::Settings {
+        default_font: iced::Font::with_name("JetBrains Mono"),
+        default_text_size: iced::Pixels(10.0),
+        fonts: vec![Cow::Borrowed(include_bytes!(
+            "../assets/JetBrainsMono-Regular.ttf"
+        ))],
+        antialiasing: false,
+        id: None,
+        virtual_keyboard_support: None,
+        with_connection: None,
+        layer_settings: LayerShellSettings {
+            size: Some((0, 37)),
+            exclusive_zone: 37,
+            anchor: Anchor::Top | Anchor::Left | Anchor::Right,
+            layer: Layer::Top,
+            keyboard_interactivity: KeyboardInteractivity::None,
+            start_mode: StartMode::Active,
+            ..Default::default()
+        },
     })
     .run()
 }
@@ -196,10 +209,10 @@ impl App {
             let (id, task) = Message::layershell_open(NewLayerShellSettings {
                 size: Some((500, 600)),
                 exclusive_zone: Some(0),
-                anchor: Anchor::Top | Anchor::Bottom | Anchor::Left | Anchor::Right,
+                anchor: Anchor::empty(),
                 layer: Layer::Overlay,
                 keyboard_interactivity: KeyboardInteractivity::OnDemand,
-                margin: Some((0, 0, 0, 0)),
+                margin: None,
                 events_transparent: false,
                 output_option: OutputOption::None,
                 namespace: Some("driftshell-launcher".to_string()),
@@ -244,7 +257,7 @@ impl App {
             let (id, task) = Message::layershell_open(NewLayerShellSettings {
                 size: Some((600, 500)),
                 exclusive_zone: Some(0),
-                anchor: Anchor::Top | Anchor::Bottom | Anchor::Left | Anchor::Right,
+                anchor: Anchor::empty(),
                 layer: Layer::Overlay,
                 keyboard_interactivity: KeyboardInteractivity::OnDemand,
                 margin: None,
