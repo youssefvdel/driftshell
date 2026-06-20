@@ -8,6 +8,7 @@ use iced_layershell::settings::StartMode;
 use iced_layershell::{daemon, to_layer_message};
 
 use crate::bar;
+use crate::dock;
 use crate::driftwm;
 use crate::launcher;
 use crate::settings;
@@ -19,6 +20,7 @@ use crate::shared;
 #[derive(Debug, Clone)]
 pub enum Message {
     Bar(bar::Message),
+    Dock(dock::Message),
     Driftwm(driftwm::Message),
     Launcher(launcher::Message),
     Settings(settings::Message),
@@ -31,10 +33,12 @@ pub enum Message {
 
 pub struct App {
     pub bar: bar::Bar,
+    pub dock: dock::Dock,
     pub driftwm: driftwm::State,
     pub launcher: launcher::Launcher,
     pub settings: settings::Settings,
     pub apps_scanned: bool,
+    pub dock_window: Option<IcedId>,
     pub launcher_window: Option<IcedId>,
     pub settings_window: Option<IcedId>,
 }
@@ -43,10 +47,12 @@ impl Default for App {
     fn default() -> Self {
         Self {
             bar: bar::Bar::default(),
+            dock: dock::Dock::default(),
             driftwm: driftwm::State::default(),
             launcher: launcher::Launcher::new(std::collections::HashMap::new()),
             settings: settings::Settings::default(),
             apps_scanned: false,
+            dock_window: None,
             launcher_window: None,
             settings_window: None,
         }
@@ -58,9 +64,26 @@ impl Default for App {
 pub fn run() -> Result<(), iced_layershell::Error> {
     daemon(
         || {
+            let (dock_id, dock_cmd) = Message::layershell_open(NewLayerShellSettings {
+                size: Some((0, 48)),
+                exclusive_zone: Some(48),
+                anchor: Anchor::Bottom | Anchor::Left | Anchor::Right,
+                layer: Layer::Top,
+                keyboard_interactivity: KeyboardInteractivity::None,
+                events_transparent: false,
+                output_option: OutputOption::None,
+                namespace: Some("driftshell-dock".to_string()),
+                margin: None,
+            });
+            let mut app = App::default();
+            let favs = dock::scan_favorites();
+            if !favs.is_empty() {
+                app.dock.favorites = favs;
+            }
+            app.dock_window = Some(dock_id);
             (
-                App::default(),
-                Command::batch([schedule_tick(), poll_driftwm()]),
+                app,
+                Command::batch([schedule_tick(), poll_driftwm(), dock_cmd]),
             )
         },
         "driftshell",
@@ -85,11 +108,21 @@ impl App {
     fn update(&mut self, msg: Message) -> Command<Message> {
         match msg {
             Message::Bar(msg) => {
-                if matches!(msg, bar::Message::ToggleLauncher) {
-                    bar::update(&mut self.bar, msg);
-                    return self.toggle_launcher();
+                match msg {
+                    bar::Message::ToggleLauncher => {
+                        bar::update(&mut self.bar, msg);
+                        return self.toggle_launcher();
+                    }
+                    bar::Message::ToggleSettings => {
+                        bar::update(&mut self.bar, msg);
+                        return self.toggle_settings();
+                    }
+                    _ => bar::update(&mut self.bar, msg),
                 }
-                bar::update(&mut self.bar, msg);
+                Command::none()
+            }
+            Message::Dock(msg) => {
+                dock::update(&mut self.dock, msg);
                 Command::none()
             }
             Message::Driftwm(msg) => {
@@ -135,6 +168,8 @@ impl App {
             settings::view(&self.settings).map(Message::Settings)
         } else if self.launcher.visible && Some(id) == self.launcher_window {
             launcher::view(&self.launcher).map(Message::Launcher)
+        } else if Some(id) == self.dock_window {
+            dock::view(&self.dock).map(Message::Dock)
         } else {
             bar::view(&self.bar).map(Message::Bar)
         }
@@ -225,6 +260,7 @@ impl App {
                 &mut self.bar,
                 bar::Message::Workspaces(state.workspaces.clone()),
             );
+            dock::update(&mut self.dock, dock::Message::State(state.windows.clone()));
         }
         driftwm::update(&mut self.driftwm, msg);
     }
@@ -266,6 +302,7 @@ fn poll_driftwm() -> Command<Message> {
                     driftwm::Message::StateUpdate(driftwm::State {
                         workspaces,
                         focused_app_id: focused,
+                        windows: response.windows,
                     })
                 }
                 Ok(Err(e)) => driftwm::Message::Error(e),

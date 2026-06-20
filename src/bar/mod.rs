@@ -5,6 +5,31 @@ use iced::widget::button::{self, Button, Status};
 use iced::widget::{Space, container, row, text};
 use iced::{Color, Element, Length, Theme};
 
+fn icon_button<'a>(label: &'a str, msg: Message) -> Element<'a, Message, Theme, iced::Renderer> {
+    Button::new(text(label).size(13))
+        .padding([2, 8])
+        .style(|_theme: &Theme, status: Status| {
+            let bg = if matches!(status, Status::Hovered) {
+                Color::from_rgb(0.18, 0.18, 0.20)
+            } else {
+                Color::TRANSPARENT
+            };
+            button::Style {
+                background: Some(iced::Background::Color(bg)),
+                text_color: shared::colors::FG,
+                border: iced::Border {
+                    radius: 4.0.into(),
+                    width: 0.0,
+                    color: Color::TRANSPARENT,
+                },
+                shadow: iced::Shadow::default(),
+                snap: false,
+            }
+        })
+        .on_press(msg)
+        .into()
+}
+
 use crate::driftwm;
 use crate::shared;
 
@@ -19,12 +44,12 @@ pub struct Bar {
 // ── Messages ───────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone)]
-#[allow(dead_code)] // ToggleLauncher wired when bar button added
 pub enum Message {
     Tick,
     Workspaces(Vec<super::driftwm::Workspace>),
     FocusWorkspace(String),
     ToggleLauncher,
+    ToggleSettings,
 }
 
 // ── Update ─────────────────────────────────────────────────────────────────
@@ -42,8 +67,8 @@ pub fn update(bar: &mut Bar, msg: Message) {
                 log::error!("focus workspace: {e}");
             }
         }
-        Message::ToggleLauncher => {
-            // Handled by app-level update; this arm exists for completeness
+        Message::ToggleLauncher | Message::ToggleSettings => {
+            // Handled by app-level update
         }
     }
 }
@@ -80,8 +105,10 @@ fn workspace_button(ws: &driftwm::Workspace) -> Element<'_, Message, Theme, iced
 
 pub fn view(bar: &Bar) -> Element<'_, Message, Theme, iced::Renderer> {
     let content = row![
-        text("  driftshell").size(13),
+        icon_button("  Apps", Message::ToggleLauncher),
         Space::new().width(4),
+        icon_button("  Sets", Message::ToggleSettings),
+        Space::new().width(8),
         row(bar
             .workspaces
             .iter()

@@ -29,6 +29,9 @@ pub enum Message {
     CursorSizeChanged(String),
     BackgroundTypeChanged(String),
     BackgroundPathChanged(String),
+    DecorationFontChanged(String),
+    DecorationFontSizeChanged(String),
+    DecorationFontWeightChanged(String),
     Save,
 }
 
@@ -64,6 +67,27 @@ pub fn update(settings: &mut Settings, msg: &Message) {
             if let Some(cfg) = &mut settings.config {
                 let bg = cfg.background.get_or_insert_with(Default::default);
                 bg.path = Some(val.clone());
+            }
+        }
+        Message::DecorationFontChanged(val) => {
+            if let Some(cfg) = &mut settings.config {
+                let dec = cfg.decorations.get_or_insert_with(Default::default);
+                let tb = dec.title_bar.get_or_insert_with(Default::default);
+                tb.font = Some(val.clone());
+            }
+        }
+        Message::DecorationFontSizeChanged(val) => {
+            if let Some(cfg) = &mut settings.config {
+                let dec = cfg.decorations.get_or_insert_with(Default::default);
+                let tb = dec.title_bar.get_or_insert_with(Default::default);
+                tb.font_size = val.parse().ok();
+            }
+        }
+        Message::DecorationFontWeightChanged(val) => {
+            if let Some(cfg) = &mut settings.config {
+                let dec = cfg.decorations.get_or_insert_with(Default::default);
+                let tb = dec.title_bar.get_or_insert_with(Default::default);
+                tb.font_weight = Some(val.clone());
             }
         }
         Message::Save => {
@@ -126,6 +150,26 @@ pub fn view(settings: &Settings) -> Element<'_, Message, Theme, iced::Renderer> 
         .and_then(|b| b.path.as_deref())
         .unwrap_or("");
 
+    let dec_font = cfg
+        .decorations
+        .as_ref()
+        .and_then(|d| d.title_bar.as_ref())
+        .and_then(|t| t.font.as_deref())
+        .unwrap_or("");
+    let dec_font_size = cfg
+        .decorations
+        .as_ref()
+        .and_then(|d| d.title_bar.as_ref())
+        .and_then(|t| t.font_size)
+        .map(|s| s.to_string())
+        .unwrap_or_default();
+    let dec_font_weight = cfg
+        .decorations
+        .as_ref()
+        .and_then(|d| d.title_bar.as_ref())
+        .and_then(|t| t.font_weight.as_deref())
+        .unwrap_or("");
+
     let content = column![
         // ── Header ──
         text("Settings").size(20),
@@ -155,6 +199,21 @@ pub fn view(settings: &Settings) -> Element<'_, Message, Theme, iced::Renderer> 
         input_row(
             "Path:",
             text_input("/path/to/file", bg_path).on_input(Message::BackgroundPathChanged),
+        ),
+        // ── Decorations ──
+        text("Decorations").size(16),
+        input_row(
+            "Title bar font:",
+            text_input("e.g. Sans, monospace", dec_font).on_input(Message::DecorationFontChanged),
+        ),
+        input_row(
+            "Title bar font size:",
+            text_input("e.g. 12", &dec_font_size).on_input(Message::DecorationFontSizeChanged),
+        ),
+        input_row(
+            "Title bar font weight:",
+            text_input("e.g. normal, bold", dec_font_weight)
+                .on_input(Message::DecorationFontWeightChanged),
         ),
         // ── Feedback ──
         if let Some(fb) = &settings.feedback {

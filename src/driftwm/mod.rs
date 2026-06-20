@@ -9,6 +9,7 @@ pub struct State {
     pub workspaces: Vec<Workspace>,
     #[allow(dead_code)]
     pub focused_app_id: Option<String>,
+    pub windows: Vec<ipc::WindowInfo>,
 }
 
 /// A visible client window on the driftwm canvas.

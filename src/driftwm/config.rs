@@ -11,7 +11,20 @@ use std::path::PathBuf;
 pub struct DriftwmConfig {
     pub cursor: Option<CursorConfig>,
     pub background: Option<BackgroundConfig>,
+    pub decorations: Option<DecorationsConfig>,
     pub autostart: Option<Vec<String>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct DecorationsConfig {
+    pub title_bar: Option<TitleBarConfig>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct TitleBarConfig {
+    pub font: Option<String>,
+    pub font_size: Option<i32>,
+    pub font_weight: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
